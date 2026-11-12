@@ -1,17 +1,20 @@
+
 name: Build Android APK
+
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build-android-apk:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -19,43 +22,61 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
 
-      - name: Install deps
-        run: pnpm install
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build frontend
         run: pnpm build
 
-      - name: Sync android icons
+      - name: Sync Android icons
         run: node scripts/sync-android-icons.mjs
 
-      # Rust + Android四大编译目标
-      - name: Install Rust toolchain
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26d
+          link-to-sdk: true
+
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
+          targets: aarch64-linux-android
 
       - name: Cache Rust
         uses: swatinem/rust-cache@v2
 
-      # 官方推荐稳定安卓SDK action v2
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
-
-      # 打印环境，用来排查ANDROID_HOME是否生效，失败的时候可以看日志
-      - name: Print env debug
+      - name: Check Android environment
         run: |
-          echo $ANDROID_HOME
-          sdkmanager --list
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "NDK_HOME=$NDK_HOME"
+          java -version
+          rustc --version
+          cargo --version
 
-      # Tauri v1 原生安卓打包命令
-      - name: Build APK
-        run: pnpm tauri android build
+      - name: Build Android APK
+        run: pnpm tauri android build --apk --target aarch64 --ci
 
-      - name: Upload Artifact APK
+      - name: Find APK
+        run: |
+          find src-tauri/gen/android/app/build/outputs -type f -name "*.apk"
+          test -n "$(find src-tauri/gen/android/app/build/outputs -type f -name '*.apk' -print -quit)"
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Android-APK
-          path: src-tauri/gen/android/app/build/outputs/apk/release/app-release-unsigned.apk
+          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+
 
 
 
