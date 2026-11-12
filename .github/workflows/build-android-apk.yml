@@ -1,20 +1,19 @@
-
-name: Build Android APK
-
+name: Build Android APK & Release
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   build-android-apk:
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -22,60 +21,62 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install frontend deps
+        run: pnpm install
 
       - name: Build frontend
         run: pnpm build
 
-      - name: Sync Android icons
-        run: node scripts/sync-android-icons.mjs
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Setup Android NDK
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r26d
-          link-to-sdk: true
-
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android
+          targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
 
-      - name: Cache Rust
+      - name: Rust Cache
         uses: swatinem/rust-cache@v2
 
-      - name: Check Android environment
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Android SDK & NDK
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "NDK_HOME=$NDK_HOME"
-          java -version
-          rustc --version
-          cargo --version
+          sudo apt-get update
+          sudo apt-get install -y wget unzip
+          mkdir -p $HOME/android-sdk
+          cd $HOME/android-sdk
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q commandlinetools-linux-11076708_latest.zip
+          mv cmdline-tools cmdline-tools-tmp
+          mkdir cmdline-tools
+          mv cmdline-tools-tmp cmdline-tools/latest
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+          yes | sdkmanager --sdk_root=$HOME/android-sdk "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653" "platform-tools"
+
+      # ✅ 重点！流水线里面自动执行安卓初始化，不用你电脑/手机跑命令
+      - name: Android Init
+        run: pnpm tauri android init --ci
 
       - name: Build Android APK
-        run: pnpm tauri android build --apk --target aarch64 --ci
+        run: pnpm tauri android build -- --apk
 
-      - name: Find APK
-        run: |
-          find src-tauri/gen/android/app/build/outputs -type f -name "*.apk"
-          test -n "$(find src-tauri/gen/android/app/build/outputs -type f -name '*.apk' -print -quit)"
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Auto create Release 上传APK
+        uses: softprops/action-gh-release@v2
         with:
-          name: Android-APK
-          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
-          if-no-files-found: error
+          files: src-tauri/gen/android/app/build/outputs/apk/release/app-release-unsigned.apk
+          tag_name: v1.2.1-android
+          name: HGHub v1.2.1 安卓版
+          body: |
+            ✅ HGHub安卓构建包
+            > ⚠️ 当前为**未签名APK**
+            > 需要签名之后才能在安卓手机安装
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
 
 
