@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-android-apk:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
@@ -41,9 +41,17 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # ✅ 改用成熟action自动安装Android SDK，自动配置PATH，不会出现sdkmanager找不到
+      # 安卓SDK
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+
+      # 单独安装NDK r26d，Tauri2硬性要求NDK26，并且自动关联SDK路径
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r26d
+          link-to-sdk: true
 
       - name: Android Init
         run: pnpm tauri android init --ci
