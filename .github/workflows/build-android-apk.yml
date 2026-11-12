@@ -18,8 +18,12 @@ jobs:
         with:
           node-version: 20
 
+      # 安装pnpm！解决 pnpm:not found
+      - name: Install pnpm
+        run: npm install -g pnpm
+
       - name: Install frontend dependencies
-        run: npm install
+        run: pnpm install
 
       - name: Build Tauri Android
         uses: tauri-apps/tauri-action@v1
@@ -32,4 +36,5 @@ jobs:
         with:
           name: Android-APK
           path: src-tauri/gen/android/app/build/outputs/apk/release/app-release-unsigned.apk
+
 
