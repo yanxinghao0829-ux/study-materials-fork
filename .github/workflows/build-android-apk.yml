@@ -12,9 +12,6 @@ jobs:
     steps:
       - name: 拉取代码
         uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
 
       - name: 安装Node
         uses: actions/setup-node@v4
@@ -44,5 +41,6 @@ jobs:
         with:
           name: Android-APK
           path: src-tauri/gen/android/app/build/outputs/apk/release/*.apk
+
 
 
