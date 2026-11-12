@@ -56,7 +56,7 @@ jobs:
           targets: aarch64-linux-android
 
       - name: Install JavaScript dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Initialize Tauri Android project
         run: pnpm tauri android init --ci
