@@ -57,7 +57,7 @@ jobs:
 
       - name: Install JavaScript dependencies
         run: |
-          rm -f pnpm-lock.yaml
+          printf '\npackages: []\n' >> pnpm-workspace.yaml
           pnpm install --no-frozen-lockfile
 
       - name: Initialize Tauri Android project
