@@ -7,13 +7,11 @@ on:
 jobs:
   build-android-apk:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: Checkout source
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -21,47 +19,44 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
 
-      - name: Install frontend deps
+      - name: Install deps
         run: pnpm install
 
-      - name: Frontend build
+      - name: Build frontend
         run: pnpm build
 
       - name: Sync android icons
         run: node scripts/sync-android-icons.mjs
 
-      # 安装Rust + Android编译目标
-      - name: Install Rust
+      # Rust + Android四大编译目标
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
 
-      - name: Rust Cache
+      - name: Cache Rust
         uses: swatinem/rust-cache@v2
 
-      # 手动安装Android SDK命令行工具（稳定方案）
+      # 官方推荐稳定安卓SDK action v2
       - name: Setup Android SDK
-        run: |
-          sudo apt update
-          sudo apt install -y wget unzip
-          mkdir -p ~/android-sdk
-          cd ~/android-sdk
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q commandlinetools-linux-11076708_latest.zip
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "PATH=$HOME/android-sdk/cmdline-tools/bin:$PATH" >> $GITHUB_ENV
-          yes | sdkmanager --sdk_root=$HOME/android-sdk "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653" "platform-tools"
+        uses: android-actions/setup-android@v2
 
-      # ✅ Tauri v1 安卓打包原生命令，和你本地一模一样！
-      - name: Build Android
+      # 打印环境，用来排查ANDROID_HOME是否生效，失败的时候可以看日志
+      - name: Print env debug
+        run: |
+          echo $ANDROID_HOME
+          sdkmanager --list
+
+      # Tauri v1 原生安卓打包命令
+      - name: Build APK
         run: pnpm tauri android build
 
-      - name: Upload APK
+      - name: Upload Artifact APK
         uses: actions/upload-artifact@v4
         with:
           name: Android-APK
           path: src-tauri/gen/android/app/build/outputs/apk/release/app-release-unsigned.apk
+
 
 
 
