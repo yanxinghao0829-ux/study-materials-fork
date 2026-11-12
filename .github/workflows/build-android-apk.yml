@@ -30,32 +30,19 @@ jobs:
       - name: Sync android icons
         run: node scripts/sync-android-icons.mjs
 
-      # 安装Rust
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
+      # ✅ tauri-action v1 原生支持mobile/android打包，自带Android环境！！
+      - name: Build Tauri Android
+        uses: tauri-apps/tauri-action@v1
         with:
-          toolchain: stable
-          override: true
-
-      # 安装Android SDK NDK
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      # 设置环境变量
-      - name: Export env
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "ANDROID_NDK_ROOT=$ANDROID_NDK" >> $GITHUB_ENV
-
-      # ✅ Tauri v1 安卓打包【正确命令】tauri android build
-      - name: Build Tauri Android APK
-        run: pnpm tauri android build
+          args: mobile android build
+          skipRelease: true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Android-APK
           path: src-tauri/gen/android/app/build/outputs/apk/release/app-release-unsigned.apk
+
 
 
 
