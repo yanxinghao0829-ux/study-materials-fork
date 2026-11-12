@@ -41,23 +41,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Install Android SDK & NDK
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget unzip
-          mkdir -p $HOME/android-sdk
-          cd $HOME/android-sdk
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q commandlinetools-linux-11076708_latest.zip
-          mv cmdline-tools cmdline-tools-tmp
-          mkdir cmdline-tools
-          mv cmdline-tools-tmp cmdline-tools/latest
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
-          yes | sdkmanager --sdk_root=$HOME/android-sdk "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653" "platform-tools"
+      # ✅ 改用成熟action自动安装Android SDK，自动配置PATH，不会出现sdkmanager找不到
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      # ✅ 重点！流水线里面自动执行安卓初始化，不用你电脑/手机跑命令
       - name: Android Init
         run: pnpm tauri android init --ci
 
@@ -76,11 +63,3 @@ jobs:
             > 需要签名之后才能在安卓手机安装
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-
-
-
-
-
-
-
