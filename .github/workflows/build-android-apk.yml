@@ -10,56 +10,33 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout code
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'pnpm'
 
       - name: Install pnpm
         run: npm install -g pnpm
 
-      - name: Install frontend deps
+      - name: Install dependencies
         run: pnpm install
 
       - name: Build frontend
         run: pnpm build
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      # ✅ Tauri官方Action，自动安卓初始化+打包，自动搞定SDK/NDK
+      - name: Build Tauri Android
+        uses: tauri-apps/tauri-action@v0
         with:
-          targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
+          args: android build --apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Rust Cache
-        uses: swatinem/rust-cache@v2
-
-      - name: Setup Java JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      # 安卓SDK
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      # 单独安装NDK r26d，Tauri2硬性要求NDK26，并且自动关联SDK路径
-      - name: Setup Android NDK
-        uses: nttld/setup-ndk@v1
-        id: setup-ndk
-        with:
-          ndk-version: r26d
-          link-to-sdk: true
-
-      - name: Android Init
-        run: pnpm tauri android init --ci
-
-      - name: Build Android APK
-        run: pnpm tauri android build -- --apk
-
-      - name: Auto create Release 上传APK
+      - name: Upload APK to Release
         uses: softprops/action-gh-release@v2
         with:
           files: src-tauri/gen/android/app/build/outputs/apk/release/app-release-unsigned.apk
