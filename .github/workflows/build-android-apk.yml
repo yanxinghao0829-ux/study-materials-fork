@@ -21,10 +21,10 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      - name: Build Tauri Android APK
+      - name: Build Tauri Android
         uses: tauri-apps/tauri-action@v1
         with:
-          args: android build --apk
+          args: android build
           skipRelease: true
 
       - name: Upload APK
@@ -32,3 +32,4 @@ jobs:
         with:
           name: Android-APK
           path: src-tauri/gen/android/app/build/outputs/apk/release/app-release-unsigned.apk
+
