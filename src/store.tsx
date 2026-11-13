@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { api, platform as envPlatform } from "./api";
+const NATIVE_APP = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 import { isStrictSecurity, setStrictSecurity as setHtmlStrictSecurity } from "./html";
 import type { User } from "./types";
 
@@ -264,7 +265,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setFsState((prev) => {
       const next = typeof v === "function" ? (v as (p: boolean) => boolean)(prev) : v;
       if (!next) {
-        invoke("set_orientation", { landscape: false }).catch(() => {});
+        if (NATIVE_APP) invoke("set_orientation", { landscape: false }).catch(() => {});
         try { screen.orientation?.unlock?.(); } catch { /* ignore */ }
       }
       return next;
