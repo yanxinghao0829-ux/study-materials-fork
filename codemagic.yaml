@@ -60,12 +60,20 @@ workflows:
       - name: Initialize Tauri Android project
         script: |
           set -euo pipefail
+          source "$HOME/.cargo/env"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cargo --version
+          rustc --version
           cd "$CM_BUILD_DIR"
           npm run tauri -- android init --ci
 
       - name: Build ARM64 APK
         script: |
           set -euo pipefail
+          source "$HOME/.cargo/env"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cargo --version
+          rustc --version
           cd "$CM_BUILD_DIR"
           npm run tauri -- android build --apk --target aarch64
 
