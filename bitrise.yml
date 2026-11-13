@@ -1,0 +1,79 @@
+format_version: '13'
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+project_type: other
+
+workflows:
+  primary:
+    title: Build signed HGhub Android APK
+    steps:
+    - script@1:
+        title: Build, sign and verify APK
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            cd "$BITRISE_SOURCE_DIR"
+
+            export ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}"
+            export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+            SDKMANAGER="$(command -v sdkmanager || true)"
+            if [ -z "$SDKMANAGER" ]; then
+              echo "Android sdkmanager was not found on this Bitrise stack."
+              exit 1
+            fi
+
+            yes | "$SDKMANAGER" --licenses >/dev/null || true
+            "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
+            export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
+            export NDK_HOME="$ANDROID_NDK_HOME"
+
+            if ! command -v node >/dev/null 2>&1; then
+              echo "Node.js is missing from this Bitrise stack."
+              exit 1
+            fi
+            npm install --global pnpm@10
+
+            if ! command -v rustup >/dev/null 2>&1; then
+              curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+            fi
+            source "$HOME/.cargo/env"
+            rustup toolchain install stable
+            rustup default stable
+            rustup target add aarch64-linux-android
+
+            if [ -f pnpm-workspace.yaml ]; then
+              grep -q '^packages:' pnpm-workspace.yaml || printf '\npackages: []\n' >> pnpm-workspace.yaml
+            else
+              printf 'packages: []\n' > pnpm-workspace.yaml
+            fi
+            pnpm install --no-frozen-lockfile
+            pnpm tauri android init --ci
+            pnpm tauri android build --apk --target aarch64
+
+            APK="$(find src-tauri/gen/android/app/build/outputs -type f -name '*.apk' | head -n 1)"
+            if [ -z "$APK" ]; then
+              echo "No APK was produced."
+              exit 1
+            fi
+
+            BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+            mkdir -p "$BITRISE_DEPLOY_DIR"
+            PASS="$(openssl rand -hex 24)"
+            keytool -genkeypair -v \
+              -keystore "$BITRISE_TMP_DIR/hghub-release.jks" \
+              -alias hghub-release -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$PASS" -keypass "$PASS" \
+              -dname "CN=HGhub App, OU=Android, O=HGhub, C=CN"
+            "$BUILD_TOOLS/zipalign" -f -P 16 -v 4 "$APK" "$BITRISE_TMP_DIR/HGhub-aligned.apk"
+            "$BUILD_TOOLS/apksigner" sign \
+              --ks "$BITRISE_TMP_DIR/hghub-release.jks" \
+              --ks-key-alias hghub-release \
+              --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
+              --out "$BITRISE_DEPLOY_DIR/HGhub-Android-signed.apk" \
+              "$BITRISE_TMP_DIR/HGhub-aligned.apk"
+            "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$BITRISE_DEPLOY_DIR/HGhub-Android-signed.apk"
+            "$BUILD_TOOLS/zipalign" -c -P 16 -v 4 "$BITRISE_DEPLOY_DIR/HGhub-Android-signed.apk"
+            sha256sum "$BITRISE_DEPLOY_DIR/HGhub-Android-signed.apk" > "$BITRISE_DEPLOY_DIR/SHA256SUMS.txt"
+            rm -f "$BITRISE_TMP_DIR/hghub-release.jks" "$BITRISE_TMP_DIR/HGhub-aligned.apk"
+
+    - deploy-to-bitrise-io@2: {}
