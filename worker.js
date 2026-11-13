@@ -32,7 +32,7 @@ async function edge(method,path,body){
   const r=await fetch(BASE+"/api/edge/request",{method:"POST",headers:{"Accept":"application/json","Content-Type":"application/json","Referer":BASE+"/","User-Agent":UA},body:JSON.stringify(envelope),redirect:"manual",signal:AbortSignal.timeout(18000)});
   if(r.status>=300 && r.status<400) throw new Error("业务接口重定向已拒绝");
   const raw=await r.text();
-  if(!r.ok) { const hint=raw.replace(/<script[\\s\\S]*?<\\/script>/gi," ").replace(/<[^>]+>/g," ").replace(/\\s+/g," ").trim().slice(0,220); throw new Error("上游接口 HTTP "+r.status+(hint?": "+hint:"")); }
+  if(!r.ok) { const hint=raw.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim().slice(0,220); throw new Error("上游接口 HTTP "+r.status+(hint?": "+hint:"")); }
   let data; try { data=raw?JSON.parse(raw):null; } catch { throw new Error("上游接口返回非 JSON: "+raw.slice(0,120)); }
   if(data==null) return null;
   if(data.status===1) return data.data??null;
