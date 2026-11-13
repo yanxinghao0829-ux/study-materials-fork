@@ -7,6 +7,13 @@ import "./index.css";
 import { initPlaybackLog, installPlaybackPageEvents } from "./playbackDiagnostics";
 
 installPlaybackPageEvents();
+
+// Browser/PWA only: the native Tauri app keeps using its own networking and cache.
+if (!("__TAURI_INTERNALS__" in window) && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
 void initPlaybackLog();
 
 /* 运行期错误统一落到 debug.log，便于自查 */
