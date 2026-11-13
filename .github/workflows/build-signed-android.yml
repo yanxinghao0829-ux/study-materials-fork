@@ -110,3 +110,5 @@ jobs:
             release/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
+
+# Fresh trigger to replace the stale queued build.
