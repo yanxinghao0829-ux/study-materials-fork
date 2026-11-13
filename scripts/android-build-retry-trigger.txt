@@ -1,0 +1,1 @@
+Harmless trigger file for retrying the signed Android APK workflow after a stale queued run. This file does not affect application code or build configuration.
