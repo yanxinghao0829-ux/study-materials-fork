@@ -1,0 +1,21 @@
+{
+  "id": "/",
+  "name": "HGhub · 黄果短剧",
+  "short_name": "HGhub",
+  "description": "HGhub 视频与短剧客户端",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1a1a",
+  "theme_color": "#1a1a1a",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
