@@ -2,7 +2,7 @@ workflows:
   hghub-android-arm64:
     name: HGhub Android ARM64 - signed APK
     max_build_duration: 120
-    instance_type: linux_x2
+    instance_type: mac_mini_m2
 
     environment:
       vars:
@@ -107,7 +107,7 @@ workflows:
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$CM_BUILD_DIR/release/HGhub-Android-ARM64-SIGNED.apk"
           "$BUILD_TOOLS/zipalign" -c -P 16 -v 4 "$CM_BUILD_DIR/release/HGhub-Android-ARM64-SIGNED.apk"
           test -s "$CM_BUILD_DIR/release/HGhub-Android-ARM64-SIGNED.apk"
-          sha256sum "$CM_BUILD_DIR/release/HGhub-Android-ARM64-SIGNED.apk" > "$CM_BUILD_DIR/release/SHA256SUMS.txt"
+          shasum -a 256 "$CM_BUILD_DIR/release/HGhub-Android-ARM64-SIGNED.apk" > "$CM_BUILD_DIR/release/SHA256SUMS.txt"
 
           rm -f "$CM_BUILD_DIR/release/HGhub-aligned.apk" "$CM_BUILD_DIR/hghub-ci-release.jks"
 
