@@ -63,11 +63,11 @@ export default function Player({
     const url = playlist(src);
     recoverCountRef.current = 0;
     setErrMsg("");
-    trace("source.load", { engine: Hls.isSupported() ? "hls.js" : "native", auto_play: autoPlay });
+    trace("source.load", { engine: Hls.isSupported() && platform !== "ios" ? "hls.js" : "native", auto_play: autoPlay });
 
     if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
 
-    if (Hls.isSupported()) {
+    if (Hls.isSupported() && platform !== "ios") {
       const hls = new Hls({
         // 禁用从插播/内容引导 JSON 派生直连 URL 的可选功能。
         interstitialsController: undefined,
@@ -199,6 +199,7 @@ export default function Player({
         onSeeked={() => setWaiting(false)}
         onTimeUpdate={(e) => setTime((e.target as HTMLVideoElement).currentTime)}
         onLoadedMetadata={(e) => setDuration((e.target as HTMLVideoElement).duration || 0)}
+        onError={(e) => { const code = (e.currentTarget as HTMLVideoElement).error?.code ?? 0; setWaiting(false); setErrMsg(`native_hls_error/${code}`); }}
         onEnded={() => { if (activity.isActive()) onEnded?.(); }}
       />
 
