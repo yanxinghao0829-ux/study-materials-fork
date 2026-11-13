@@ -33,3 +33,4 @@ jobs:
       - run: node --check server.mjs
       - run: node --check worker.js
       - run: pnpm build
+      - run: npx --yes wrangler deploy --dry-run
