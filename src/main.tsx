@@ -16,9 +16,10 @@ if (!("__TAURI_INTERNALS__" in window) && "serviceWorker" in navigator) {
 }
 void initPlaybackLog();
 
-/* 运行期错误统一落到 debug.log，便于自查 */
+/* 运行期错误统一落到 debug.log，便于自查；浏览器版没有 Tauri IPC。 */
+const NATIVE_APP = "__TAURI_INTERNALS__" in window;
 function report(kind: string, msg: string) {
-  invoke("debug_log", { msg: `[${kind}] ${msg}` }).catch(() => {});
+  if (NATIVE_APP) invoke("debug_log", { msg: `[${kind}] ${msg}` }).catch(() => {});
 }
 window.addEventListener("error", (e) => {
   report("error", `${e.message} @ ${e.filename}:${e.lineno}:${e.colno}`);
