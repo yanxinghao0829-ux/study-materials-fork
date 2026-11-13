@@ -114,7 +114,7 @@ async function media(req,res,url,route) {
 async function serveStatic(req,res,url) {
   let pathname=decodeURIComponent(url.pathname); if(pathname==="/" || !extname(pathname)) pathname="/index.html";
   const root=join(process.cwd(),"dist"), file=normalize(join(root,pathname));
-  if(!file.startsWith(root)) return send(res,403,"forbidden","text/plain");
+  if(file!==root && !file.startsWith(root + (process.platform === "win32" ? "\\" : "/"))) return send(res,403,"forbidden","text/plain");
   try { const info=await stat(file); if(!info.isFile()) throw new Error("not file");
     send(res,200,await readFile(file),MIME[extname(file)]||"application/octet-stream",{"Cache-Control":pathname==="/index.html"?"no-cache":"public, max-age=31536000, immutable"});
   } catch { send(res,404,"not found","text/plain"); }
