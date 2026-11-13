@@ -48,33 +48,26 @@ workflows:
           rustup default stable
           rustup target add aarch64-linux-android
 
-          if ! command -v pnpm >/dev/null 2>&1; then
-            npm install --global pnpm@10
-          fi
-          pnpm --version
+          node --version
+          npm --version
 
       - name: Install project dependencies
         script: |
           set -euo pipefail
           cd "$CM_BUILD_DIR"
-          if [ -f pnpm-workspace.yaml ]; then
-            grep -q '^packages:' pnpm-workspace.yaml || printf '\npackages: []\n' >> pnpm-workspace.yaml
-          else
-            printf 'packages: []\n' > pnpm-workspace.yaml
-          fi
-          pnpm install --no-frozen-lockfile
+          npm install --no-package-lock --legacy-peer-deps
 
       - name: Initialize Tauri Android project
         script: |
           set -euo pipefail
           cd "$CM_BUILD_DIR"
-          pnpm tauri android init --ci
+          npm run tauri -- android init --ci
 
       - name: Build ARM64 APK
         script: |
           set -euo pipefail
           cd "$CM_BUILD_DIR"
-          pnpm tauri android build --apk --target aarch64
+          npm run tauri -- android build --apk --target aarch64
 
       - name: Align, sign and verify APK
         script: |
