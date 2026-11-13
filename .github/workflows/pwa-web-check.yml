@@ -1,6 +1,7 @@
 name: PWA web build check
 
 # Validate the browser-only guest build and Cloudflare Worker bundle.
+# Re-trigger validation after repository Actions were re-enabled.
 on:
   push:
     branches: [main]
