@@ -95,18 +95,22 @@ function imageType(b,original){
 async function media(req,url,route){
   const target=url.searchParams.get("u");if(!target)return new Response("missing u",{status:400});
   const r=await upstream(target,req.headers.get("Range"));
-  const b=await r.arrayBuffer(),type=r.headers.get("content-type")||"application/octet-stream";
+  const type=r.headers.get("content-type")||"application/octet-stream";
   if(route==="/img"){
+    const b=await r.arrayBuffer();
     const plain=/^image\/(jpeg|png|gif|webp)/i.test(type)?b:await imageBytes(b);
     return new Response(plain,{headers:{...CORS,"Content-Type":imageType(plain,type),"Cache-Control":"public, max-age=86400"}});
   }
-  if(route==="/hls" || type.toLowerCase().includes("mpegurl") || new TextDecoder().decode(b.slice(0,7))==="#EXTM3U"){
+  const playlist=route==="/hls" || type.toLowerCase().includes("mpegurl") || /\.m3u8(?:$|\?)/i.test(target);
+  if(playlist){
+    const b=await r.arrayBuffer();
     const txt=new TextDecoder().decode(b);if(!txt.trimStart().startsWith("#EXTM3U"))throw new Error("响应不是 HLS 播放列表");
     return new Response(rewritePlaylist(target,txt),{headers:{...CORS,"Content-Type":"application/vnd.apple.mpegurl","Cache-Control":"no-store"}});
   }
-  const h=new Headers({...CORS,"Content-Type":type,"Cache-Control":"public, max-age=3600","Accept-Ranges":"bytes"});
-  for(const k of ["content-range","content-length"])if(r.headers.has(k))h.set(k,r.headers.get(k));
-  return new Response(b,{status:r.status,headers:h});
+  // Stream media bytes directly to the client. Do not buffer an entire video/segment in Worker memory.
+  const h=new Headers({...CORS,"Content-Type":type,"Cache-Control":"public, max-age=3600"});
+  for(const k of ["content-range","content-length","accept-ranges"])if(r.headers.has(k))h.set(k,r.headers.get(k));
+  return new Response(r.body,{status:r.status,headers:h});
 }
 async function diagnosePlay(id,ep){
   let info=null,postError="",getError="";
