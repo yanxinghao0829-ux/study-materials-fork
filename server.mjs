@@ -86,14 +86,14 @@ function rewritePlaylist(target,text) {
     const s=line.trimEnd(); if(!s) return "";
     if(s.startsWith("#EXT-X-CONTENT-STEERING:")) return "";
     if(s.startsWith("#EXT-X-DATERANGE:")) return s.replace(/,(?:X-ASSET-LIST|[^,]*URI)="[^"]*"/gi,"");
-    if(s.startsWith("#")) return s.replace(/URI="([^"]+)"/g,(_m,u)=>"URI=\\""+proxyUrl(new URL(u,base).href,"/seg")+"\\"");
+    if(s.startsWith("#")) return s.replace(/URI="([^"]+)"/g,(_m,u)=>'URI="'+proxyUrl(new URL(u,base).href,"/seg")+'"');
     return proxyUrl(new URL(s,base).href,"/seg");
   }).join("\n")+"\n";
 }
 async function media(req,res,url,route) {
   const response=await upstreamBytes(url,req.headers.range); const bytes=Buffer.from(await response.arrayBuffer());
   if(route==="img") {
-    let plain=bytes; if(!/^image\\/(jpeg|png|gif|webp)/i.test(response.headers.get("content-type")||"")) plain=decryptImage(bytes);
+    let plain=bytes; if(!/^image\/(jpeg|png|gif|webp)/i.test(response.headers.get("content-type")||"")) plain=decryptImage(bytes);
     let type="image/jpeg";
     if(plain[0]===0x89 && plain.toString("ascii",1,4)==="PNG") type="image/png";
     else if(plain.subarray(0,4).toString()==="GIF8") type="image/gif";
