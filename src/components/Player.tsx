@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
-import { fmtTime, platform, playlist } from "../api";
+import { fmtTime, isIos, playlist } from "../api";
 import { mediaResource, observeHls, usePlayerDiagnostics } from "../playbackDiagnostics";
 import { usePlaybackActivity } from "../usePlaybackActivity";
 import { useSeekInput } from "../useSeekInput";
@@ -63,17 +63,17 @@ export default function Player({
     const url = playlist(src);
     recoverCountRef.current = 0;
     setErrMsg("");
-    trace("source.load", { engine: Hls.isSupported() && platform !== "ios" ? "hls.js" : "native", auto_play: autoPlay });
+    trace("source.load", { engine: Hls.isSupported() && !isIos ? "hls.js" : "native", auto_play: autoPlay });
 
     if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
 
-    if (Hls.isSupported() && platform !== "ios") {
+    if (Hls.isSupported() && !isIos) {
       const hls = new Hls({
         // 禁用从插播/内容引导 JSON 派生直连 URL 的可选功能。
         interstitialsController: undefined,
         contentSteeringController: undefined,
         enableInterstitialPlayback: false,
-        enableWorker: platform !== "ios",
+        enableWorker: !isIos,
         // Keep the same macOS seek workaround as the shared player.
         preferManagedMediaSource: false,
         autoStartLoad: false,
