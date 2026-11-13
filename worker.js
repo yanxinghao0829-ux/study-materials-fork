@@ -1,5 +1,6 @@
 const BASE = "https://huangguoai.com";
 const MEDIA_HOSTS = new Set(["huangguoai.com","huangguoai.ai","pic.drleao.cn","yd-hls.hzjvlo.cn","yd-lphu-hls.hzjvlo.cn","tp3.drleao.cn"]);
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const CORS = {"X-Content-Type-Options":"nosniff"};
 const json = (data,status=200)=>new Response(JSON.stringify(data),{status,headers:{...CORS,"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"}});
 const fail = (message,status=502)=>json({error:String(message).slice(0,180)},status);
@@ -12,7 +13,7 @@ function mediaUrl(raw) {
 async function upstream(raw,range) {
   let u=mediaUrl(raw);
   for(let hop=0;hop<=4;hop++){
-    const h={"User-Agent":"Mozilla/5.0 HGhub-PWA","Referer":BASE+"/"};
+    const h={"User-Agent":UA,"Referer":BASE+"/"};
     if(range) h.Range=range;
     const r=await fetch(u.href,{headers:h,redirect:"manual",signal:AbortSignal.timeout(25000)});
     if([301,302,303,307,308].includes(r.status)){
@@ -28,7 +29,7 @@ async function upstream(raw,range) {
 async function edge(method,path,body){
   if(!path.startsWith("/api/") || path.includes("..")) throw new Error("接口路径无效");
   const envelope={method,path,body:body==null?"":btoa(unescape(encodeURIComponent(JSON.stringify(body)))),content_type:body==null?"":"application/json"};
-  const r=await fetch(BASE+"/api/edge/request",{method:"POST",headers:{"Accept":"application/json","Content-Type":"application/json","Referer":BASE+"/"},body:JSON.stringify(envelope),redirect:"manual",signal:AbortSignal.timeout(18000)});
+  const r=await fetch(BASE+"/api/edge/request",{method:"POST",headers:{"Accept":"application/json","Content-Type":"application/json","Referer":BASE+"/","User-Agent":UA},body:JSON.stringify(envelope),redirect:"manual",signal:AbortSignal.timeout(18000)});
   if(r.status>=300 && r.status<400) throw new Error("业务接口重定向已拒绝");
   if(!r.ok) throw new Error("上游接口 HTTP "+r.status);
   const data=await r.json();
