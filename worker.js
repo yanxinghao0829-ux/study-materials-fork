@@ -108,12 +108,53 @@ async function media(req,url,route){
   for(const k of ["content-range","content-length"])if(r.headers.has(k))h.set(k,r.headers.get(k));
   return new Response(b,{status:r.status,headers:h});
 }
+async function diagnosePlay(id,ep){
+  let info=null,postError="",getError="";
+  try{info=playInfo(await edge("POST","/api/videos/"+id+"/episodes/"+ep+"/playback",{}));}
+  catch(e){postError=e?.message||String(e);}
+  let method="POST";
+  if(!info?.video_url){
+    method="GET";
+    try{info=playInfo(await edge("GET","/api/videos/"+id+"/play?ep="+ep+"&page_texts=0"));}
+    catch(e){getError=e?.message||String(e);}
+  }
+  const source=info?.video_url;
+  if(!source)return {ok:false,stage:"play_api",post_error:postError||null,get_error:getError||null,message:"播放接口没有返回 video_url"};
+  let u;
+  try{u=mediaUrl(source);}catch(e){return {ok:false,stage:"media_url_validation",method,error:e?.message||String(e)};}
+  const result={ok:false,stage:"media_fetch",method,host:u.hostname,protocol:u.protocol};
+  try{
+    const isPlaylist=/\.m3u8(?:$|\?)/i.test(u.href);
+    let r=await upstream(u.href,isPlaylist?null:"bytes=0-1023");
+    result.http_status=r.status;
+    result.content_type=r.headers.get("content-type")||"";
+    if(isPlaylist || result.content_type.toLowerCase().includes("mpegurl")){
+      let textBody=await r.text();
+      if(!textBody.trimStart().startsWith("#EXTM3U"))return {...result,stage:"playlist_parse",error:"媒体响应不是有效的 M3U8"};
+      let next=textBody.split(/\r?\n/).map(x=>x.trim()).find(x=>x&&!x.startsWith("#"));
+      if(!next)return {...result,stage:"playlist_parse",error:"M3U8 中没有媒体分片或子播放列表"};
+      let child=new URL(next,u).href;
+      if(/\.m3u8(?:$|\?)/i.test(child)){
+        const nested=await upstream(child,null);
+        const nestedText=await nested.text();
+        if(!nestedText.trimStart().startsWith("#EXTM3U"))return {...result,stage:"variant_playlist",error:"子播放列表无效",variant_status:nested.status};
+        const segment=nestedText.split(/\r?\n/).map(x=>x.trim()).find(x=>x&&!x.startsWith("#"));
+        if(!segment)return {...result,stage:"variant_playlist",error:"子播放列表没有分片"};
+        child=new URL(segment,child).href;
+      }
+      const seg=await upstream(child,"bytes=0-1023");
+      return {...result,ok:seg.ok,stage:"first_segment",segment_status:seg.status,segment_type:seg.headers.get("content-type")||"",segment_bytes:seg.headers.get("content-length")||null,message:seg.ok?"播放地址、播放列表及首个分片均可访问":"首个分片请求失败"};
+    }
+    return {...result,ok:r.ok,stage:"media_file",message:r.ok?"媒体文件可访问":"媒体文件请求失败"};
+  }catch(e){return {...result,error:e?.message||String(e)};}
+}
 export default {
  async fetch(req,env){
   const u=new URL(req.url);
   if(req.method!=="GET")return new Response("method not allowed",{status:405,headers:{Allow:"GET"}});
   try{
    if(u.pathname==="/health")return json({ok:true});
+   if(u.pathname==="/diag/play")return json(await diagnosePlay(int(u.searchParams.get("id"),0,1,2147483647),int(u.searchParams.get("ep"),1)));
    if(["/img","/hls","/seg"].includes(u.pathname))return await media(req,u,u.pathname);
    if(u.pathname.startsWith("/api/"))return json(await api(u.pathname,u.searchParams));
    return env.ASSETS.fetch(req);
