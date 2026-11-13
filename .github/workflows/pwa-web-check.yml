@@ -2,6 +2,7 @@ name: PWA web build check
 
 # Validate the browser-only guest build and Cloudflare Worker bundle.
 # Re-trigger validation after repository Actions were re-enabled.
+# PWA workflow refresh: 2026-11-14.
 on:
   push:
     branches: [main]
