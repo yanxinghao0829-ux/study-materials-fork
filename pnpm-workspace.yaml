@@ -1,3 +1,6 @@
+packages:
+  - '.'
+
 # pnpm 11 起：
 #   * `package.json` 的 `pnpm.*` 字段、以及 `.npmrc` 里非 auth/registry 的设置都不再被读取，
 #     安装相关设置必须写在这里（pnpm 10 也读这份文件，两处并存不冲突，.npmrc 留给 pnpm 10）。
