@@ -48,7 +48,10 @@ workflows:
           rustup default stable
           rustup target add aarch64-linux-android
 
-          npm install --global pnpm@10
+          if ! command -v pnpm >/dev/null 2>&1; then
+            npm install --global pnpm@10
+          fi
+          pnpm --version
 
       - name: Install project dependencies
         script: |
