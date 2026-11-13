@@ -11,6 +11,8 @@ on:
       - "pnpm-lock.yaml"
       - "vite.config.ts"
       - "server.mjs"
+      - "worker.js"
+      - "wrangler.toml"
       - "Dockerfile"
       - ".github/workflows/pwa-web-check.yml"
   workflow_dispatch:
@@ -29,4 +31,5 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: node --check server.mjs
+      - run: node --check worker.js
       - run: pnpm build
