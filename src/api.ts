@@ -26,7 +26,8 @@ export const isMobile = isAndroid || isIos;
  *  Windows / Android → `http://<scheme>.localhost`
  *  macOS / iOS / Linux → `<scheme>://localhost`
  *  Rust 侧 `src-tauri/src/lib.rs` 里改写 m3u8 用的 scheme 必须与此一致。 */
-const NATIVE_APP = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+export const isNativeApp = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+const NATIVE_APP = isNativeApp;
 export const LOCAL = NATIVE_APP ? (isMacos || isIos || isLinux ? "hg://localhost" : "http://hg.localhost") : "";
 
 /** src 是否已是本地协议地址（避免在详情页把代理地址再包一层） */
