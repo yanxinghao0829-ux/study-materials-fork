@@ -18,7 +18,7 @@ permissions:
 jobs:
   build:
     name: Build, sign and verify APK
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
       - name: Checkout source
@@ -113,4 +113,4 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-# Fresh trigger to replace stale queued builds (attempt 3).
+# Fresh trigger to replace stale queued builds (attempt 4, Ubuntu 22.04 runner).
