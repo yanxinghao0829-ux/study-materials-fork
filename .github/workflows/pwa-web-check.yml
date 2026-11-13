@@ -1,5 +1,6 @@
 name: PWA web build check
 
+# Validate the browser-only guest build and Cloudflare Worker bundle.
 on:
   push:
     branches: [main]
