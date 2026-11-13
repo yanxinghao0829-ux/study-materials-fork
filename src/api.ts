@@ -83,7 +83,7 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> 
     if (!NATIVE_APP) return await webCall<T>(cmd, args);
     return (await invoke(cmd, args)) as T;
   } catch (e) {
-    const msg = typeof e === "string" ? e : "请求失败，请检查网络";
+    const msg = typeof e === "string" ? e : e instanceof Error ? e.message : (e && typeof e === "object" && "message" in e && typeof e.message === "string" ? e.message : "请求失败，请检查网络");
     // 落盘完整错误链（dns error / connection refused / 证书错误…），toast 只显示截断版
     logLine(`[api] ${cmd} → ${msg}`);
     const status = /^HTTP (\d{3})\b/.exec(msg)?.[1];
