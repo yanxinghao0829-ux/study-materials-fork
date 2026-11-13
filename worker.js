@@ -38,10 +38,17 @@ async function edge(method,path,body){
   if(data.status===1) return data.data??null;
   throw new Error(typeof data.msg==="string"?data.msg:"接口返回失败");
 }
+function streamValue(v){
+  if(typeof v==="string") return v;
+  if(v && typeof v==="object") {
+    for(const k of ["url","src","play_url","video_url","m3u8"]) if(typeof v[k]==="string" && v[k]) return v[k];
+  }
+  return "";
+}
 function playInfo(info){
   if(!info || typeof info!=="object") return info;
-  if(!info.video_url && info.streams?.main) info.video_url=info.streams.main;
-  if(!info.video_url_hevc && info.streams?.hevc) info.video_url_hevc=info.streams.hevc;
+  if(!info.video_url) info.video_url=streamValue(info.streams?.main)||streamValue(info.main)||streamValue(info.play_url);
+  if(!info.video_url_hevc) info.video_url_hevc=streamValue(info.streams?.hevc);
   return info;
 }
 async function api(path,q){
@@ -55,7 +62,7 @@ async function api(path,q){
     case "/api/post": return edge("GET","/api/posts/"+int(q.get("id"),0,1,2147483647));
     case "/api/comments": return edge("GET","/api/videos/"+int(q.get("id"),0,1,2147483647)+"/comments?ep="+int(q.get("ep"),1)+"&page="+int(q.get("page"),1)+"&size="+int(q.get("size"),20,1,50));
     case "/api/post-comments": return edge("GET","/api/posts/"+int(q.get("id"),0,1,2147483647)+"/comments?page="+int(q.get("page"),1)+"&size="+int(q.get("size"),20,1,50));
-    case "/api/play": {const id=int(q.get("id"),0,1,2147483647),ep=int(q.get("ep"),1);let p,e;try{p=await edge("POST","/api/videos/"+id+"/episodes/"+ep+"/playback",{});}catch(x){e=x;}if(p&&(p.streams?.main||p.video_url))return playInfo(p);try{const old=playInfo(await edge("GET","/api/videos/"+id+"/play?ep="+ep+"&page_texts=0"));if(old?.video_url||!p)return old;}catch{}if(p)return playInfo(p);throw e||new Error("暂无可播放线路");}
+    case "/api/play": {const id=int(q.get("id"),0,1,2147483647),ep=int(q.get("ep"),1);let p,postError="",getError="";try{p=playInfo(await edge("POST","/api/videos/"+id+"/episodes/"+ep+"/playback",{}));}catch(x){postError=x?.message||String(x);}if(p?.video_url)return p;try{const old=playInfo(await edge("GET","/api/videos/"+id+"/play?ep="+ep+"&page_texts=0"));if(old?.video_url)return old;}catch(x){getError=x?.message||String(x);}const detail=[postError&&("POST: "+postError),getError&&("GET: "+getError)].filter(Boolean).join(" | ");throw new Error(detail||"播放接口未返回 streams.main / video_url");}
     default: throw new Error("游客模式不支持此操作");
   }
 }
