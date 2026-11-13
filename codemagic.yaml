@@ -1,0 +1,116 @@
+workflows:
+  hghub-android-arm64:
+    name: HGhub Android ARM64 - signed APK
+    max_build_duration: 120
+    instance_type: linux_x2
+
+    environment:
+      vars:
+        ANDROID_API_LEVEL: "35"
+        ANDROID_BUILD_TOOLS: "35.0.0"
+        ANDROID_NDK_VERSION: "27.2.12479018"
+      node: 22
+      java: 17
+
+    scripts:
+      - name: Prepare Android SDK and Rust toolchain
+        script: |
+          set -euo pipefail
+
+          export ANDROID_HOME="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Android/Sdk}}"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ] && [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          if [ -z "$SDKMANAGER" ]; then
+            echo "ERROR: Android sdkmanager is unavailable on this Codemagic image."
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-${ANDROID_API_LEVEL}" "build-tools;${ANDROID_BUILD_TOOLS}" "ndk;${ANDROID_NDK_VERSION}"
+
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION"
+          export NDK_HOME="$ANDROID_NDK_HOME"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$CM_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$CM_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> "$CM_ENV"
+          echo "NDK_HOME=$ANDROID_NDK_HOME" >> "$CM_ENV"
+
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+          fi
+          source "$HOME/.cargo/env"
+          rustup toolchain install stable
+          rustup default stable
+          rustup target add aarch64-linux-android
+
+          npm install --global pnpm@10
+
+      - name: Install project dependencies
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR"
+          if [ -f pnpm-workspace.yaml ]; then
+            grep -q '^packages:' pnpm-workspace.yaml || printf '\npackages: []\n' >> pnpm-workspace.yaml
+          else
+            printf 'packages: []\n' > pnpm-workspace.yaml
+          fi
+          pnpm install --no-frozen-lockfile
+
+      - name: Initialize Tauri Android project
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR"
+          pnpm tauri android init --ci
+
+      - name: Build ARM64 APK
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR"
+          pnpm tauri android build --apk --target aarch64
+
+      - name: Align, sign and verify APK
+        script: |
+          set -euo pipefail
+          cd "$CM_BUILD_DIR"
+
+          APK="$(find src-tauri/gen/android/app/build/outputs -type f -name '*.apk' | head -n 1)"
+          if [ -z "$APK" ]; then
+            echo "ERROR: Tauri did not produce an APK."
+            find src-tauri/gen/android/app/build/outputs -type f -print || true
+            exit 1
+          fi
+
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS"
+          test -x "$BUILD_TOOLS/apksigner"
+          test -x "$BUILD_TOOLS/zipalign"
+
+          mkdir -p "$CM_BUILD_DIR/release"
+          PASS="$(openssl rand -hex 32)"
+          keytool -genkeypair -noprompt -keystore "$CM_BUILD_DIR/hghub-ci-release.jks" \
+            -storetype JKS -alias hghub-release -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$PASS" -keypass "$PASS" \
+            -dname "CN=HGhub App, OU=Android, O=HGhub, C=CN"
+
+          "$BUILD_TOOLS/zipalign" -f -P 16 -v 4 "$APK" "$CM_BUILD_DIR/release/HGhub-aligned.apk"
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks "$CM_BUILD_DIR/hghub-ci-release.jks" \
+            --ks-key-alias hghub-release \
+            --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
+            --out "$CM_BUILD_DIR/release/HGhub-Android-ARM64-SIGNED.apk" \
+            "$CM_BUILD_DIR/release/HGhub-aligned.apk"
+
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$CM_BUILD_DIR/release/HGhub-Android-ARM64-SIGNED.apk"
+          "$BUILD_TOOLS/zipalign" -c -P 16 -v 4 "$CM_BUILD_DIR/release/HGhub-Android-ARM64-SIGNED.apk"
+          test -s "$CM_BUILD_DIR/release/HGhub-Android-ARM64-SIGNED.apk"
+          sha256sum "$CM_BUILD_DIR/release/HGhub-Android-ARM64-SIGNED.apk" > "$CM_BUILD_DIR/release/SHA256SUMS.txt"
+
+          rm -f "$CM_BUILD_DIR/release/HGhub-aligned.apk" "$CM_BUILD_DIR/hghub-ci-release.jks"
+
+    artifacts:
+      - release/HGhub-Android-ARM64-SIGNED.apk
+      - release/SHA256SUMS.txt
