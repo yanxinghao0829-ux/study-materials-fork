@@ -3,6 +3,7 @@ import { useEffect, useRef, useSyncExternalStore, type RefObject } from "react";
 import Hls from "hls.js";
 import type { FragBufferedData, FragLoadedData, FragLoadingData } from "hls.js";
 
+const NATIVE_APP = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 type Data = Record<string, unknown>;
 type Status = { enabled: boolean; path: string | null; error: string | null };
 type Entry = { event: string; data: Data };
@@ -10,10 +11,10 @@ type Snapshot = Status & { ready: boolean; pending: boolean };
 
 // Separate transport also lets browser regressions verify diagnostics without Tauri or upstream.
 export const playbackLogApi = {
-  status: () => invoke<Status>("playback_log_status"),
-  set: (enabled: boolean) => invoke<Status>("playback_log_set", { enabled }),
-  write: (entries: Entry[]) => invoke<void>("playback_log_write", { entries }),
-  read: () => invoke<string>("playback_log_read"),
+  status: () => NATIVE_APP ? invoke<Status>("playback_log_status") : Promise.resolve<Status>({ enabled:false, path:null, error:null }),
+  set: (enabled: boolean) => NATIVE_APP ? invoke<Status>("playback_log_set", { enabled }) : Promise.resolve<Status>({ enabled:false, path:null, error:null }),
+  write: (entries: Entry[]) => NATIVE_APP ? invoke<void>("playback_log_write", { entries }) : Promise.resolve(),
+  read: () => NATIVE_APP ? invoke<string>("playback_log_read") : Promise.resolve(""),
 };
 let state: Snapshot = { enabled: false, path: null, error: null, ready: false, pending: false };
 const listeners = new Set<() => void>();
