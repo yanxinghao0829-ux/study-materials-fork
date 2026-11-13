@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build signed Android APK
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build:
-    name: Build HGhub Android APK
+    name: Build and sign HGhub Android APK
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -57,7 +57,11 @@ jobs:
 
       - name: Install JavaScript dependencies
         run: |
-          printf '\npackages: []\n' >> pnpm-workspace.yaml
+          if [ -f pnpm-workspace.yaml ]; then
+            grep -q '^packages:' pnpm-workspace.yaml || printf '\npackages: []\n' >> pnpm-workspace.yaml
+          else
+            printf 'packages: []\n' > pnpm-workspace.yaml
+          fi
           pnpm install --no-frozen-lockfile
 
       - name: Initialize Tauri Android project
@@ -66,10 +70,42 @@ jobs:
       - name: Build APK
         run: pnpm tauri android build --apk --target aarch64
 
-      - name: Upload APK
+      - name: Align, sign, and verify APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find src-tauri/gen/android/app/build/outputs -type f -name '*.apk' | head -n 1)"
+          if [ -z "$APK" ]; then
+            echo "No APK was produced by the Android build."
+            find src-tauri/gen/android/app/build/outputs -maxdepth 5 -type f -print || true
+            exit 1
+          fi
+          mkdir -p release
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          ALIGNED="release/HGhub-android-aligned.apk"
+          FINAL="release/HGhub-android-signed.apk"
+          "$BUILD_TOOLS/zipalign" -f -p 4 "$APK" "$ALIGNED"
+          keytool -genkeypair -v \
+            -keystore release/android-release.keystore \
+            -storepass android -keypass android \
+            -alias hghub -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=HGhub Android, OU=Release, O=HGhub, C=US"
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks release/android-release.keystore \
+            --ks-pass pass:android --key-pass pass:android \
+            --out "$FINAL" "$ALIGNED"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$FINAL"
+          "$BUILD_TOOLS/zipalign" -c -v 4 "$FINAL"
+          test -s "$FINAL"
+          sha256sum "$FINAL" | tee release/SHA256SUMS.txt
+          rm -f release/android-release.keystore release/HGhub-android-aligned.apk
+
+      - name: Upload verified APK
         uses: actions/upload-artifact@v4
         with:
-          name: HGhub-Android-APK
-          path: src-tauri/gen/android/app/build/outputs/**/*.apk
+          name: HGhub-Android-signed
+          path: |
+            release/HGhub-android-signed.apk
+            release/SHA256SUMS.txt
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
