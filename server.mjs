@@ -57,7 +57,7 @@ async function apiRoute(path,q) {
     case "/api/rank": { const kind=["hot","recommend","potential"].includes(q.get("kind"))?q.get("kind"):"hot"; return edge("GET","/api/ranks/"+kind); }
     case "/api/search": return edge("GET","/api/search?q="+encodeURIComponent(String(q.get("q")||"").slice(0,100))+"&page="+int(q.get("page"),1)+"&size="+int(q.get("size"),20,1,50));
     case "/api/category": {
-      const cate=String(q.get("cate")||""); if(!/^[\\p{L}\\p{N}_-]{1,40}$/u.test(cate)) throw new Error("分类参数无效");
+      const cate=String(q.get("cate")||""); if(!/^[\p{L}\p{N}_-]{1,40}$/u.test(cate)) throw new Error("分类参数无效");
       return edge("GET","/api/videos/category/"+encodeURIComponent(cate)+"?page="+int(q.get("page"),1)+"&size="+int(q.get("size"),20,1,50));
     }
     case "/api/video": return edge("GET","/api/videos/"+int(q.get("id"),0,1,2147483647));
@@ -82,13 +82,13 @@ function decryptImage(input) {
 function proxyUrl(target,route) { return route+"?u="+encodeURIComponent(target); }
 function rewritePlaylist(target,text) {
   const base=new URL(target);
-  return text.replace(/^\\uFEFF/,"").split(/\\r?\\n/).map(line=>{
+  return text.replace(/^\uFEFF/,"").split(/\r?\n/).map(line=>{
     const s=line.trimEnd(); if(!s) return "";
     if(s.startsWith("#EXT-X-CONTENT-STEERING:")) return "";
     if(s.startsWith("#EXT-X-DATERANGE:")) return s.replace(/,(?:X-ASSET-LIST|[^,]*URI)="[^"]*"/gi,"");
     if(s.startsWith("#")) return s.replace(/URI="([^"]+)"/g,(_m,u)=>"URI=\\""+proxyUrl(new URL(u,base).href,"/seg")+"\\"");
     return proxyUrl(new URL(s,base).href,"/seg");
-  }).join("\\n")+"\\n";
+  }).join("\n")+"\n";
 }
 async function media(req,res,url,route) {
   const response=await upstreamBytes(url,req.headers.range); const bytes=Buffer.from(await response.arrayBuffer());
