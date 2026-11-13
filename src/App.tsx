@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStore, type Page, type Tab } from "./store";
 import { isMobile, selfTest } from "./api";
 import { addPluginListener, invoke } from "@tauri-apps/api/core";
+const NATIVE_APP = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 import { runBack } from "./back";
 import Home from "./pages/Home";
 import Search, { RankPage } from "./pages/Search";
@@ -245,11 +246,11 @@ export default function App() {
     if (loginOpen) { setLoginOpen(false); return; }
     if (stack.length) { pop(); return; }
     if (tab !== "home") { setTab("home"); return; }
-    invoke("plugin:app|exit", { code: 0 }).catch(() => {});
+    if (NATIVE_APP) invoke("plugin:app|exit", { code: 0 }).catch(() => {});
   };
 
   useEffect(() => {
-    if (platform !== "android") return undefined;
+    if (!NATIVE_APP || platform !== "android") return undefined;
     let disposed = false;
     let handle: { unregister: () => Promise<void> } | null = null;
     addPluginListener("app", "back-button", () => backRef.current())
@@ -270,7 +271,7 @@ export default function App() {
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     const t = window.setTimeout(() => {
-      selfTest().then((r) => { invoke("debug_log", { msg: r }).catch(() => {}); }).catch(() => {});
+      if (NATIVE_APP) selfTest().then((r) => { invoke("debug_log", { msg: r }).catch(() => {}); }).catch(() => {});
     }, 2500);
     return () => window.clearTimeout(t);
   }, []);
