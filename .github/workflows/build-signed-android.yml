@@ -90,7 +90,7 @@ jobs:
             -storepass "$PASS" -keypass "$PASS" \
             -dname "CN=HGhub App, OU=Android, O=HGhub, C=CN"
           BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
-          "$BUILD_TOOLS/zipalign" -f -p 4 "$APK" release/HGhub-Android-aligned.apk
+          "$BUILD_TOOLS/zipalign" -f -P 16 -v 4 "$APK" release/HGhub-Android-aligned.apk
           "$BUILD_TOOLS/apksigner" sign \
             --ks "$RUNNER_TEMP/hghub-release.jks" \
             --ks-key-alias hghub-release \
@@ -98,7 +98,7 @@ jobs:
             --out release/HGhub-Android-signed.apk \
             release/HGhub-Android-aligned.apk
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs release/HGhub-Android-signed.apk
-          "$BUILD_TOOLS/zipalign" -c -v 4 release/HGhub-Android-signed.apk
+          "$BUILD_TOOLS/zipalign" -c -P 16 -v 4 release/HGhub-Android-signed.apk
           test -s release/HGhub-Android-signed.apk
           sha256sum release/HGhub-Android-signed.apk | tee release/SHA256SUMS.txt
           rm -f release/HGhub-Android-aligned.apk "$RUNNER_TEMP/hghub-release.jks"
