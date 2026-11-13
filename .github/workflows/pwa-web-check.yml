@@ -10,6 +10,8 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "vite.config.ts"
+      - "server.mjs"
+      - "Dockerfile"
       - ".github/workflows/pwa-web-check.yml"
   workflow_dispatch:
 
