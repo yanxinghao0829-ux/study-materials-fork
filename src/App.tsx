@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStore, type Page, type Tab } from "./store";
 import { isMobile, selfTest } from "./api";
 import { addPluginListener, invoke } from "@tauri-apps/api/core";
-const NATIVE_APP = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 import { runBack } from "./back";
 import Home from "./pages/Home";
 import Search, { RankPage } from "./pages/Search";
@@ -17,6 +16,8 @@ import { DesktopRail, DesktopTitleBar } from "./components/DesktopChrome";
 import ResizeHandles from "./components/ResizeHandles";
 import { tracePlayback } from "./playbackDiagnostics";
 import { IGrid, IGridF, IHome, IHomeF, ISearch, IUser, IUserF, Logo } from "./icons";
+
+const NATIVE_APP = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 /* ============ 底部标签栏（Android）—— 细瘦纯文字、低侵入 ============ */
 function TabBar() {
