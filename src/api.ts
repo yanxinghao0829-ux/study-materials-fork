@@ -26,7 +26,8 @@ export const isMobile = isAndroid || isIos;
  *  Windows / Android → `http://<scheme>.localhost`
  *  macOS / iOS / Linux → `<scheme>://localhost`
  *  Rust 侧 `src-tauri/src/lib.rs` 里改写 m3u8 用的 scheme 必须与此一致。 */
-export const LOCAL = isMacos || isIos || isLinux ? "hg://localhost" : "http://hg.localhost";
+const NATIVE_APP = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+export const LOCAL = NATIVE_APP ? (isMacos || isIos || isLinux ? "hg://localhost" : "http://hg.localhost") : "";
 
 /** src 是否已是本地协议地址（避免在详情页把代理地址再包一层） */
 export const isLocalMedia = (src: string) => src.startsWith(`${LOCAL}/`);
@@ -41,10 +42,44 @@ export const playlist = (url: string) => `${LOCAL}/hls?u=${encodeURIComponent(ur
 /* ── 调用封装 ───────────────────────────────────────────── */
 
 /** 写一行到应用数据目录 debug.log（用户反馈「打不开」时要的就是它） */
-export const logLine = (msg: string) => invoke("debug_log", { msg }).catch(() => {});
+export const logLine = (msg: string) => NATIVE_APP ? invoke("debug_log", { msg }).catch(() => {}) : Promise.resolve();
+
+async function webCall<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
+  const q = new URLSearchParams();
+  const put = (key: string, value: unknown) => { if (value !== undefined && value !== null) q.set(key, String(value)); };
+  let path = "";
+  switch (cmd) {
+    case "app_boot": return { user: null, logged_in: false, base: "https://huangguoai.com", strict_security: true } as T;
+    case "security_set": return false as T;
+    case "api_login": case "api_register": case "api_logout": case "api_me":
+      throw new Error("iPhone 游客版仅提供浏览和播放，不提供账号功能");
+    case "api_feed": path="/api/feed"; put("page",args.page); put("size",args.size); break;
+    case "api_posts": path="/api/posts"; put("page",args.page); put("size",args.size); break;
+    case "api_rank": path="/api/rank"; put("kind",args.kind); break;
+    case "api_search": path="/api/search"; put("q",args.q); put("page",args.page); put("size",args.size); break;
+    case "api_category": path="/api/category"; put("cate",args.cate); put("page",args.page); put("size",args.size); break;
+    case "api_video": path="/api/video"; put("id",args.id); break;
+    case "api_post": path="/api/post"; put("id",args.id); break;
+    case "api_play": path="/api/play"; put("id",args.id); put("ep",args.ep); break;
+    case "api_comments": path="/api/comments"; put("id",args.id); put("ep",args.ep); put("page",args.page); put("size",args.size); break;
+    case "api_post_comments": path="/api/post-comments"; put("id",args.id); put("page",args.page); put("size",args.size); break;
+    case "line_state": return { base:"https://huangguoai.com", default:"https://huangguoai.com", fixed:[] } as T;
+    case "line_mirrors": return { source:"", items:[] } as T;
+    case "line_probe": return [] as T;
+    case "line_set": throw new Error("游客版暂不支持切换线路");
+    case "check_update": return { current:APP_VERSION, latest:APP_VERSION, has_update:false, url:"" } as T;
+    case "open_url": window.open(String(args.url || ""), "_blank", "noopener,noreferrer"); return undefined as T;
+    default: throw new Error("此功能仅在原生客户端中提供");
+  }
+  const response = await fetch(path + (q.size ? "?" + q.toString() : ""));
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "服务器请求失败");
+  return data as T;
+}
 
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   try {
+    if (!NATIVE_APP) return await webCall<T>(cmd, args);
     return (await invoke(cmd, args)) as T;
   } catch (e) {
     const msg = typeof e === "string" ? e : "请求失败，请检查网络";
@@ -97,14 +132,14 @@ export const api = {
   commentSend: (id: number, ep: number, text: string, replyId?: number) =>
     call<unknown>("api_comment_send", { id, ep, text, replyId: replyId ?? null }),
 
-  clearCache: () => invoke<void>("cache_clear"),
-  netDiag: () => invoke<Record<string, unknown>>("net_diag"),
-  postLike: (id: number, on: boolean) => invoke<unknown>("api_post_like", { id, on }),
-  postCollect: (id: number, on: boolean) => invoke<unknown>("api_post_collect", { id, on }),
+  clearCache: () => NATIVE_APP ? invoke<void>("cache_clear") : Promise.resolve(),
+  netDiag: () => NATIVE_APP ? invoke<Record<string, unknown>>("net_diag") : Promise.resolve({ web: true }),
+  postLike: (id: number, on: boolean) => NATIVE_APP ? invoke<unknown>("api_post_like", { id, on }) : Promise.resolve(null),
+  postCollect: (id: number, on: boolean) => NATIVE_APP ? invoke<unknown>("api_post_collect", { id, on }) : Promise.resolve(null),
   postComments: (id: number, page: number, size: number) => call<CommentPage>("api_post_comments", { id, page, size }),
-  like: (id: number, ep: number, on: boolean) => call<unknown>("api_like", { id, ep, on }),
-  collect: (id: number, on: boolean) => call<unknown>("api_collect", { id, on }),
-  follow: (uid: number, on: boolean) => call<unknown>("api_follow", { uid, on }),
+  like: (id: number, ep: number, on: boolean) => NATIVE_APP ? call<unknown>("api_like", { id, ep, on }) : Promise.resolve(null),
+  collect: (id: number, on: boolean) => NATIVE_APP ? call<unknown>("api_collect", { id, on }) : Promise.resolve(null),
+  follow: (uid: number, on: boolean) => NATIVE_APP ? call<unknown>("api_follow", { uid, on }) : Promise.resolve(null),
 
   /* 线路（数据源）：固定线路写死在 Rust 侧，镜像线路按需从地址发布页拉取 */
   lineState: () => call<LineState>("line_state"),
