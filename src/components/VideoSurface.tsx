@@ -168,7 +168,7 @@ const VideoSurface = forwardRef<VideoHandle, Props>(function VideoSurface(
     const url = proxied ? src : playlist(src);
     const useHls = !url.includes("/seg?u=");
     const isIos = platform === "ios";
-    trace("source.load", { engine: useHls && Hls.isSupported() ? "hls.js" : "native", auto_play: autoPlay, resource: mediaResource(src) });
+    trace("source.load", { engine: useHls && Hls.isSupported() && !isIos ? "hls.js" : "native", auto_play: autoPlay, resource: mediaResource(src) });
 
     /* 换源时先把音量/倍速套回去：hls 重新 attach 后浏览器会把它们重置成默认值 */
     const applySettings = () => {
@@ -180,7 +180,7 @@ const VideoSurface = forwardRef<VideoHandle, Props>(function VideoSurface(
     };
     applySettings();
 
-    if (useHls && Hls.isSupported()) {
+    if (useHls && Hls.isSupported() && !isIos) {
       const hls = new Hls({
         // 禁用从插播/内容引导 JSON 派生直连 URL 的可选功能。
         interstitialsController: undefined,
