@@ -7,7 +7,7 @@ const fail = (message,status=502)=>json({error:String(message).slice(0,180)},sta
 const int = (v,fallback,min=1,max=100)=>{const n=Number(v);return Number.isInteger(n)?Math.max(min,Math.min(max,n)):fallback;};
 function mediaUrl(raw) {
   const u=new URL(raw);
-  if(u.protocol!=="https:" || u.username || u.password || u.port && u.port!=="443" || !MEDIA_HOSTS.has(u.hostname.toLowerCase())) throw new Error("媒体地址不在允许的来源范围");
+  if(u.protocol!=="https:" || u.username || u.password || u.port && u.port!=="443" || !MEDIA_HOSTS.has(u.hostname.toLowerCase())) throw new Error("媒体地址不在允许的来源范围: "+u.hostname.toLowerCase());
   return u;
 }
 async function upstream(raw,range) {
