@@ -1,5 +1,5 @@
 const BASE = "https://huangguoai.com";
-const MEDIA_HOSTS = new Set(["huangguoai.com","huangguoai.ai","pic.drleao.cn","yd-hls.hzjvlo.cn","yd-lphu-hls.hzjvlo.cn","tp3.drleao.cn"]);
+const MEDIA_HOSTS = new Set(["huangguoai.com","huangguoai.ai","pic.drleao.cn","yd-hls.hzjvlo.cn","yd-lphu-hls.hzjvlo.cn","yd-lphu-long.hzjvlo.cn","tp3.drleao.cn"]);
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const CORS = {"X-Content-Type-Options":"nosniff"};
 const json = (data,status=200)=>new Response(JSON.stringify(data),{status,headers:{...CORS,"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"}});
